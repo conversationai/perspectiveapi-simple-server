@@ -67,7 +67,7 @@ export class Server {
   constructor(public config: Config) {
     if (this.config.isProduction) {
       this.log = { write : (_s:string) :void => {} };
-    // TODO(ldixon): figure out how to do cloud logging right...
+    // TODO(ldixon): do the cloud logging thing...
     // something like this...
     //   // Instantiates a client
     //   const loggingClient = Logging();
@@ -100,7 +100,7 @@ export class Server {
     // Trust proxies so that DoS server can see original IP addresses.
     // DoS Server will hopefully start from the least trustd IPs and work
     // backwards.
-    // TODO(ldixon): check is this is right.
+    // TODO(ldixon): check is what we want.
     this.app.set('trust proxy', true);
 
     // TODO(ldixon): explore how to force ssl.
