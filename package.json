@@ -1,7 +1,7 @@
 {
-  "name": "@conversationai/checker-server",
+  "name": "@conversationai/simple-server",
   "description": "Server for use with the conversationai-checker",
-  "repository": "https://github.com/Jigsaw-Code/conversationai-checker-server",
+  "repository": "https://github.com/conversationai/conversationai-simple-server",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "scripts": {

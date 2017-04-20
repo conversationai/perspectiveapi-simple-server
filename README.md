@@ -1,7 +1,7 @@
-# conversationai-checker-server
+# Conversation AI Simple Server
 
-Server for use with the [convai-checker angular
-component](https://github.com/Jigsaw-Code/conversationai-checker).
+A simple demo server for use. It serves some static content from a specified directory, and
+provides proxy to the API in a way that enables the API-key to be kept private.
 
 To configure the server, create a `server_config.json` file with the following
 fields.
@@ -25,7 +25,7 @@ recommended.
 To use this server, run:
 
 ```bash
-yarn add @conversationai/checker-server
+yarn add @conversationai/simple-server
 yarn install
 ```
 
@@ -34,7 +34,7 @@ This will add the server to your `node_modules` folder.
 Then, to run the server, call:
 
 ```bash
-node node_modules/@conversationai/checker-server/build/server/run_server.js server_config.json
+node node_modules/@conversationai/simple-server/build/server/run_server.js server_config.json
 ```
 
 ## Notes
