@@ -1,0 +1,51 @@
+{
+  "name": "@conversationai/checker-server",
+  "description": "Server for use with the conversationai-checker",
+  "repository": "https://github.com/Jigsaw-Code/conversationai-checker-server",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "scripts": {
+    "setup": "mkdir -p build/server/ && mkdir -p build/config/ && rsync --ignore-existing server_config.template.json build/config/server_config.json && typings install",
+    "build": "tsc --outdir build/server/",
+    "start": "node build/server/run_server.js build/config/server_config.json",
+    "start-dev": "NODE_ENV='development' node build/server/run_server.js build/config/server_config.json",
+    "start-prod": "NODE_ENV='production' node build/server/run_server.js build/config/server_config.json",
+    "test": "mocha build/server/serving_test.js"
+  },
+  "dependencies": {
+    "@google-cloud/debug-agent": "^1.0.0",
+    "@google-cloud/logging": "^0.8.0",
+    "@google/cloud-trace": "^0.6.2",
+    "body-parser": "^1.17.0",
+    "compression": "^1.6.2",
+    "concurrently": "^3.4.0",
+    "connect-memcached": "^0.2.0",
+    "cookie-parser": "^1.4.3",
+    "core-js": "^2.4.1",
+    "cors": "^2.8.1",
+    "express": "^4.15.0",
+    "express-enforces-ssl": "^1.1.0",
+    "express-recaptcha": "^2.1.0",
+    "express-session": "^1.15.1",
+    "form-data": "^2.1.2",
+    "googleapis": "^17.0.0",
+    "helmet": "^3.4.1",
+    "morgan": "^1.8.1",
+    "passport": "^0.3.2",
+    "passport-google-oauth20": "^1.0.0",
+    "recaptcha2": "^1.0.8",
+    "request": "^2.78.0",
+    "serve-favicon": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/express-session": "^0.0.32",
+    "@types/helmet": "^0.0.33",
+    "chai": "^3.5.0",
+    "jasmine": "^2.5.3",
+    "supertest": "^3.0.0",
+    "tslint": "^4.5.1",
+    "typedoc": "^0.5.7",
+    "typescript": "^2.2.1",
+    "typings": "^2.1.0"
+  }
+}
