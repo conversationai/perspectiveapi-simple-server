@@ -16,7 +16,7 @@ yarn run build
 yarn run start-dev
 ```
 
-Now you can visit localhost:8080 and you should get a "hello world!" page.
+Now you can visit `http://localhost:8080/` and you should get a "hello world!" page.
 
 ## Configuring the server
 

@@ -37,10 +37,13 @@ const IS_PRODUCTION : boolean =
 
 if(IS_PRODUCTION) {
   config.isProduction = true;
-  require('@google/cloud-trace').start(
-      {projectId: config.cloudProjectId});
-  require('@google-cloud/debug-agent').start(
-      {projectId: config.cloudProjectId});
+  require('@google-cloud/trace-agent').start({
+    projectId: config.cloudProjectId
+  });
+  require('@google-cloud/debug-agent').start({
+    projectId: config.cloudProjectId,
+    allowExpressions: true
+  });
 }
 
 import * as serving from './serving'
