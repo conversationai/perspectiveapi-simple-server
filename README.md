@@ -56,4 +56,4 @@ node node_modules/@conversationai/perspectiveapi-simple-server/build/server/run_
 
 ## Notes
 
-This is only some example code to help experimentation with the Perspective API; it is not an official Google product.
+This is example code to help experimentation with the Perspective API; it is not an official Google product.
