@@ -2,3 +2,9 @@ language: node_js
 node_js:
   lts/*
 cache: yarn
+before_script:
+  - npm install -g mocha
+script:
+  - yarn install
+  - yarn run setup
+  - yarn run build
