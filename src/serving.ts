@@ -193,7 +193,7 @@ export class Server {
     return this.createCommentAnalyzerClient(COMMENT_ANALYZER_DISCOVERY_URL)
       .then<void>(() => {
         this.log.write('Analyzer client created');
-        return new Promise<void>((F: () => Promise<void>,
+        return new Promise<void>((F: () => void,
                                   R: (reason?: Error) => void) => {
           // Start HTTP up the server
           this.httpServer.listen(this.port, (err: Error) => {
@@ -214,7 +214,7 @@ export class Server {
   };
 
   stop() : Promise<void> {
-    return new Promise<void>((F: () => Promise<void>,
+    return new Promise<void>((F: () => void,
                               _: (impossible_error?: Error) => void) => {
       this.httpServer.close(F);
     });
@@ -254,8 +254,8 @@ export class Server {
   }
 
   createCommentAnalyzerClient(discoveryUrl: string) : Promise<void> {
-    return new Promise<void>((resolve: () => Promise<void>,
-                              reject: (reason?: Error|ResponseError) => {}) => {
+    return new Promise<void>((resolve: () => void,
+                              reject: (reason?: Error|ResponseError) => void) => {
       googleapis.discoverAPI(discoveryUrl, (discoverErr: ResponseError,
                                             client: NodeAnalyzeApiClient) => {
         if (discoverErr) {
