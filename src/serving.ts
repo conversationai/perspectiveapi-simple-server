@@ -33,6 +33,7 @@ import {
   AnalyzeCommentRequest,
   AnalyzeCommentResponse,
   AttributeScores,
+  Context,
   NodeAnalyzeApiClient,
   RequestedAttributes,
   ResponseError,
@@ -136,16 +137,46 @@ export class Server {
 
       this.log.write(`Request: ${JSON.stringify({headers: req.rawHeaders, body: req.body})}`);
 
+      // The request format translation below exists so that we restrict
+      // queries to our website server to hitting the attribute specified
+      // in our config (TOXICITY).
+      // TODO(rachelrosen): Consider a cleaner way to do this, such as
+      // using booleans, to avoid the extra translation code.
+
       let requestData: AnalyzeCommentData = req.body as AnalyzeCommentData;
 
       let requestedAttributes: RequestedAttributes = {};
-      requestedAttributes[this.config.toxicityAttribute] = {};
+      requestedAttributes[this.config.toxicityAttribute] = {
+        score_type: 'PROBABILITY'
+      };
+
+      let context: Context|undefined = undefined;
+      if (requestData.articleText) {
+        context = {
+          article_and_parent_comment: {
+            article: { text: requestData.articleText},
+          }
+        };
+        if (context.article_and_parent_comment &&
+            requestData.parentComment) {
+          context.article_and_parent_comment.parent_comment = {
+            text: requestData.parentComment
+          };
+        }
+      }
 
       let request: AnalyzeCommentRequest = {
         comment: {text: requestData.comment},
+        context: context,
+        languages: requestData.languages,
         requested_attributes: requestedAttributes,
+        do_not_store: requestData.doNotStore,
+        client_token: requestData.clientToken,
         session_id: requestData.sessionId,
+        community_id: requestData.communityId,
+        span_annotations: requestData.spanAnnotations
       };
+
       this.sendAnalyzeRequest(request)
         .then((response: AnalyzeCommentResponse) => {
           res.send(response);
