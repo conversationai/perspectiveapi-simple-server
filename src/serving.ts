@@ -140,7 +140,9 @@ export class Server {
       let requestData: AnalyzeCommentData = req.body as AnalyzeCommentData;
 
       let requestedAttributes: RequestedAttributes = {};
-      requestedAttributes[this.config.toxicityAttribute] = {};
+      requestedAttributes[this.config.toxicityAttribute] = {
+        score_type: 'PROBABILITY'
+      };
 
       let context: Context|undefined = undefined;
       if (requestData.articleText) {
