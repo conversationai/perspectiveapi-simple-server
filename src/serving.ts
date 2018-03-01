@@ -137,6 +137,12 @@ export class Server {
 
       this.log.write(`Request: ${JSON.stringify({headers: req.rawHeaders, body: req.body})}`);
 
+      // The request format translation below exists so that we restrict
+      // queries to our website server to hitting the attribute specified
+      // in our config (TOXICITY).
+      // TODO(rachelrosen): Consider a cleaner way to do this, such as
+      // using booleans, to avoid the extra translation code.
+
       let requestData: AnalyzeCommentData = req.body as AnalyzeCommentData;
 
       let requestedAttributes: RequestedAttributes = {};
