@@ -195,7 +195,7 @@ export class Server {
     });
   }
 
-  // Converts a request object into an AnalyzeCommentRequest that can be sent to
+  // Converts a DemoRequest into an AnalyzeCommentRequest that can be sent to
   // the OnePlatform API.
   getAnalyzeCommentRequest(req: DemoRequest): AnalyzeCommentRequest {
     if(!req.body) {
