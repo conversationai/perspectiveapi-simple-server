@@ -54,6 +54,12 @@ export interface SuggestCommentScoreRequest {
   client_token?: string;
 }
 
+// Request coming from the demo.
+export interface DemoRequest {
+  body: AnalyzeCommentData;
+  rawHeaders: {};
+}
+
 // Holds data needed for building an |AnalyzeCommentRequest|.
 export interface AnalyzeCommentData {
   comment: string;

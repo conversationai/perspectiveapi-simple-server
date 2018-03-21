@@ -18,6 +18,7 @@ import * as compression from 'compression';
 import * as express from 'express';
 import * as http from 'http';
 import * as path from 'path';
+import * as cors from 'cors';
 // import * as Logging from '@google-cloud/logging';
 // import * as helmet from 'helmet';
 // import * as express_enforces_ssl from 'express-enforces-ssl';
@@ -34,6 +35,7 @@ import {
   AnalyzeCommentResponse,
   AttributeScores,
   Context,
+  DemoRequest,
   NodeAnalyzeApiClient,
   RequestedAttributes,
   ResponseError,
@@ -68,21 +70,6 @@ export class Server {
   constructor(public config: Config) {
     if (this.config.isProduction) {
       this.log = { write : (_s:string) :void => {} };
-    // TODO(ldixon): do the cloud logging thing...
-    // something like this...
-    //   // Instantiates a client
-    //   const loggingClient = Logging();
-    //   // The name of the log to write to
-    //   const LOG_NAME = 'convai-server-log';
-    //   // Selects the log to write to
-    //   let logWrite = loggingClient.log(LOG_NAME).write;
-    //   this.log = { write : (s:string) :void => {
-    //     // We wrap this just to catch the error so that node doesn't crash
-    //     // should stackdriver fail a log statement.
-    //     // Once we confirm that stackdriver log functions never fail their promise,
-    //     // then this can be removed.
-    //     logWrite(s).catch((e:Error) => { console.error(e); });
-    //   } };
     } else {
       this.log = { write : (s:string) :void => { console.log(s); } };
     }
@@ -105,17 +92,6 @@ export class Server {
     this.app.set('trust proxy', true);
 
     // TODO(ldixon): explore how to force ssl.
-    // Only force HTTPS on production deployments:
-    // https://localhost doesn't have a certificate.
-    // Note: to force-serve static content through https, this must be
-    // before the static page specification.
-    // if (this.config.isProduction) {
-      // this.app.use(express_enforces_ssl());
-      // this.app.use(helmet);
-      // this.app.use(helmet.hsts({ force: true }));
-    // }
-
-    // this.app.use(morganLogger('combined'));
 
     this.app.use(express.static(this.staticPath));
     // Remove the header that express adds by default.
@@ -129,55 +105,22 @@ export class Server {
       res.status(200).send('ok');
     });
 
+    // Define an endpoint with CORS enabled to be used by the plugin.
+    this.app.options('/plugin/check', cors()) // enable CORS for pre-flight requests.
+    this.app.post('/plugin/check', cors(), (req, res) => {
+      this.log.write('Received a cross-original check request.');
+      this.sendAnalyzeRequest(this.getAnalyzeCommentRequest(req))
+        .then((response: AnalyzeCommentResponse) => {
+          res.send(response);
+        })
+        .catch((e: ResponseError) => {
+          res.status(e.code).send(e);
+        });
+    });
+
+
     this.app.post('/check', (req, res) => {
-      if(!req.body) {
-        // TODO: don't thow error, return an appropriate response code.
-        throw Error('No request body.');
-      }
-
-      this.log.write(`Request: ${JSON.stringify({headers: req.rawHeaders, body: req.body})}`);
-
-      // The request format translation below exists so that we restrict
-      // queries to our website server to hitting the attribute specified
-      // in our config (TOXICITY).
-      // TODO(rachelrosen): Consider a cleaner way to do this, such as
-      // using booleans, to avoid the extra translation code.
-
-      let requestData: AnalyzeCommentData = req.body as AnalyzeCommentData;
-
-      let requestedAttributes: RequestedAttributes = {};
-      requestedAttributes[this.config.toxicityAttribute] = {
-        score_type: 'PROBABILITY'
-      };
-
-      let context: Context|undefined = undefined;
-      if (requestData.articleText) {
-        context = {
-          article_and_parent_comment: {
-            article: { text: requestData.articleText},
-          }
-        };
-        if (context.article_and_parent_comment &&
-            requestData.parentComment) {
-          context.article_and_parent_comment.parent_comment = {
-            text: requestData.parentComment
-          };
-        }
-      }
-
-      let request: AnalyzeCommentRequest = {
-        comment: {text: requestData.comment},
-        context: context,
-        languages: requestData.languages,
-        requested_attributes: requestedAttributes,
-        do_not_store: requestData.doNotStore,
-        client_token: requestData.clientToken,
-        session_id: requestData.sessionId,
-        community_id: requestData.communityId,
-        span_annotations: requestData.spanAnnotations
-      };
-
-      this.sendAnalyzeRequest(request)
+      this.sendAnalyzeRequest(this.getAnalyzeCommentRequest(req))
         .then((response: AnalyzeCommentResponse) => {
           res.send(response);
         })
@@ -249,6 +192,57 @@ export class Server {
                               _: (impossible_error?: Error) => void) => {
       this.httpServer.close(F);
     });
+  }
+
+  // Converts a DemoRequest into an AnalyzeCommentRequest that can be sent to
+  // the OnePlatform API.
+  getAnalyzeCommentRequest(req: DemoRequest): AnalyzeCommentRequest {
+    if(!req.body) {
+      // TODO: don't thow error, return an appropriate response code.
+      throw Error('No request body.');
+    }
+
+    this.log.write(`Request: ${JSON.stringify({headers: req.rawHeaders, body: req.body})}`);
+
+    // The request format translation below exists so that we restrict
+    // queries to our website server to hitting the attribute specified
+    // in our config (TOXICITY).
+    // TODO(rachelrosen): Consider a cleaner way to do this, such as
+    // using booleans, to avoid the extra translation code.
+
+    let requestData: AnalyzeCommentData = req.body as AnalyzeCommentData;
+
+    let requestedAttributes: RequestedAttributes = {};
+    requestedAttributes[this.config.toxicityAttribute] = {
+      score_type: 'PROBABILITY'
+    };
+
+    let context: Context|undefined = undefined;
+    if (requestData.articleText) {
+      context = {
+        article_and_parent_comment: {
+          article: { text: requestData.articleText},
+        }
+      };
+      if (context.article_and_parent_comment &&
+          requestData.parentComment) {
+        context.article_and_parent_comment.parent_comment = {
+          text: requestData.parentComment
+        };
+      }
+    }
+
+    return {
+      comment: {text: requestData.comment},
+      context: context,
+      languages: requestData.languages,
+      requested_attributes: requestedAttributes,
+      do_not_store: requestData.doNotStore,
+      client_token: requestData.clientToken,
+      session_id: requestData.sessionId,
+      community_id: requestData.communityId,
+      span_annotations: requestData.spanAnnotations
+    };
   }
 
   sendAnalyzeRequest(request: AnalyzeCommentRequest) : Promise<AnalyzeCommentResponse> {
