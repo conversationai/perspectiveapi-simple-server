@@ -70,7 +70,6 @@ export class Server {
   constructor(public config: Config) {
     if (this.config.isProduction) {
       this.log = { write : (_s:string) :void => {} };
-      // TODO(ldixon): do the cloud logging thing...
     } else {
       this.log = { write : (s:string) :void => { console.log(s); } };
     }
