@@ -141,7 +141,8 @@ export class Server {
         req.body as SuggestCommentScoreData;
 
       let attributeScores: AttributeScores  = {};
-      attributeScores[this.config.toxicityAttribute] = {
+      const attribute = requestData.modelName || this.config.toxicityAttribute;
+      attributeScores[attribute] = {
         summaryScore: { value: requestData.commentMarkedAsToxic ? 1 : 0 }
       };
       let request: SuggestCommentScoreRequest = {
@@ -213,7 +214,8 @@ export class Server {
     let requestData: AnalyzeCommentData = req.body as AnalyzeCommentData;
 
     let requestedAttributes: RequestedAttributes = {};
-    requestedAttributes[this.config.toxicityAttribute] = {
+    const attribute = requestData.modelName || this.config.toxicityAttribute;
+    requestedAttributes[attribute] = {
       score_type: 'PROBABILITY'
     };
 
