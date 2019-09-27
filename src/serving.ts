@@ -28,7 +28,7 @@ interface Logger {
 }
 
 // TODO: write a typings for googleapis.
-const googleapis = require('googleapis');
+import {GoogleApis, commentanalyzer_v1alpha1} from 'googleapis';
 import {
   AnalyzeCommentData,
   AnalyzeCommentRequest,
@@ -36,13 +36,13 @@ import {
   AttributeScores,
   Context,
   DemoRequest,
-  NodeAnalyzeApiClient,
   RequestedAttributes,
   ResponseError,
   SuggestCommentScoreData,
   SuggestCommentScoreRequest,
   SuggestCommentScoreResponse,
 } from './analyze-api-defs';
+import {GaxiosResponse} from 'gaxios';
 
 export const COMMENT_ANALYZER_DISCOVERY_URL =
     "https://commentanalyzer.googleapis.com/$discovery/rest?version=v1alpha1";
@@ -60,7 +60,7 @@ export class Server {
   // Public for the sake of writing tests.
   public app : express.Express;
   public httpServer : http.Server;
-  public analyzeApiClient : NodeAnalyzeApiClient;
+  public analyzeApiClient : commentanalyzer_v1alpha1.Commentanalyzer;
   public apiKey : string;
   public port: number;
   public staticPath: string;
@@ -165,21 +165,20 @@ export class Server {
   }
 
   public start() : Promise<void> {
-    return this.createCommentAnalyzerClient(COMMENT_ANALYZER_DISCOVERY_URL)
+    return this.createCommentAnalyzerClient()
       .then<void>(() => {
         this.log.write('Analyzer client created');
         return new Promise<void>((F: () => void,
                                   R: (reason?: Error) => void) => {
           // Start HTTP up the server
-          this.httpServer.listen(this.port, (err: Error) => {
-            if (err) {
-              console.error(err.message);
+          try {
+            this.httpServer.listen(this.port, () => {
+              this.log.write(`HTTP Listening on port ${this.port}`);
+              F();
+            });
+          } catch (err) {
               R(err);
-              return;
-            }
-            this.log.write(`HTTP Listening on port ${this.port}`);
-            F();
-          });
+          }
         });
       })
       .catch((e) => {
@@ -251,15 +250,15 @@ export class Server {
     return new Promise((resolve, reject) => {
       this.analyzeApiClient.comments.analyze({
         key: this.config.googleCloudApiKey,
-        resource: request
+        requestBody: request
       },
-      (error: Error, response: AnalyzeCommentResponse) => {
+      (error: Error, response: GaxiosResponse<AnalyzeCommentResponse>) => {
         if (error) {
           reject(error);
           return;
         }
-        resolve(response);
-      })
+        resolve(response.data);
+      });
     });
   }
 
@@ -268,28 +267,24 @@ export class Server {
     return new Promise((resolve, reject) => {
       this.analyzeApiClient.comments.suggestscore({
         key: this.config.googleCloudApiKey,
-        resource: request
+        requestBody: request
       },
-      (error: Error, response: SuggestCommentScoreResponse) => {
+      (error: Error, response: GaxiosResponse<SuggestCommentScoreResponse>) => {
         if (error) {
           reject(error);
           return;
         }
-        resolve(response);
+        resolve(response.data);
       });
     });
   }
 
-  createCommentAnalyzerClient(discoveryUrl: string) : Promise<void> {
-    return new Promise<void>((resolve: () => void,
-                              reject: (reason?: Error|ResponseError) => void) => {
-      googleapis.discoverAPI(discoveryUrl, (discoverErr: ResponseError,
-                                            client: NodeAnalyzeApiClient) => {
-        if (discoverErr) {
-          console.error('ERROR: discoverAPI failed.');
-          reject(discoverErr);
-          return;
-        }
+  createCommentAnalyzerClient(): Promise<void> {
+    return new Promise<void>(
+      (resolve: () => void,
+        reject: (reason?: Error | ResponseError) => void) => {
+        const client = new commentanalyzer_v1alpha1.Commentanalyzer(
+          {auth: this.config.googleCloudApiKey});
         if (!(client.comments && client.comments.analyze)) {
           console.error(
             'ERROR: !(client.comments && client.comments.analyze)');
@@ -300,6 +295,5 @@ export class Server {
         this.analyzeApiClient = client;
         resolve();
       });
-    });
   };
 };
