@@ -88,6 +88,8 @@ export interface AttributeScores {
 
 export interface SuggestCommentScoreResponse {
   client_token?: string;
+  detectedLanguages?: string[];
+  requestedLanguages?: string[];
 }
 
 export interface TextEntry {

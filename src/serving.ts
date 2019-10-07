@@ -26,9 +26,6 @@ import * as cors from 'cors';
 interface Logger {
   write(s:string): void;
 }
-
-// TODO: write a typings for googleapis.
-const googleapis = require('googleapis');
 import {
   AnalyzeCommentData,
   AnalyzeCommentRequest,
@@ -36,16 +33,14 @@ import {
   AttributeScores,
   Context,
   DemoRequest,
-  NodeAnalyzeApiClient,
   RequestedAttributes,
   ResponseError,
   SuggestCommentScoreData,
   SuggestCommentScoreRequest,
   SuggestCommentScoreResponse,
 } from './analyze-api-defs';
-
-export const COMMENT_ANALYZER_DISCOVERY_URL =
-    "https://commentanalyzer.googleapis.com/$discovery/rest?version=v1alpha1";
+import {GaxiosResponse} from 'gaxios';
+import {commentanalyzer_v1alpha1} from 'googleapis';
 
 export interface Config {
   port: string;
@@ -60,7 +55,7 @@ export class Server {
   // Public for the sake of writing tests.
   public app : express.Express;
   public httpServer : http.Server;
-  public analyzeApiClient : NodeAnalyzeApiClient;
+  public analyzeApiClient : commentanalyzer_v1alpha1.Commentanalyzer;
   public apiKey : string;
   public port: number;
   public staticPath: string;
@@ -164,29 +159,28 @@ export class Server {
     this.log.write(`created server`);
   }
 
-  public start() : Promise<void> {
-    return this.createCommentAnalyzerClient(COMMENT_ANALYZER_DISCOVERY_URL)
+  public start(): Promise<void> {
+    return this.createCommentAnalyzerClient()
       .then<void>(() => {
         this.log.write('Analyzer client created');
         return new Promise<void>((F: () => void,
-                                  R: (reason?: Error) => void) => {
-          // Start HTTP up the server
-          this.httpServer.listen(this.port, (err: Error) => {
-            if (err) {
-              console.error(err.message);
-              R(err);
-              return;
-            }
-            this.log.write(`HTTP Listening on port ${this.port}`);
-            F();
-          });
+          R: (reason?: Error) => void) => {
+          // Start the HTTP server.
+          try {
+            this.httpServer.listen(this.port, () => {
+              this.log.write(`HTTP Listening on port ${this.port}`);
+              F();
+            });
+          } catch (err) {
+            R(err);
+          }
         });
       })
       .catch((e) => {
         console.error(`Failed to start: ` + e.message);
         throw e;
       });
-  };
+  }
 
   stop() : Promise<void> {
     return new Promise<void>((F: () => void,
@@ -247,59 +241,54 @@ export class Server {
     };
   }
 
-  sendAnalyzeRequest(request: AnalyzeCommentRequest) : Promise<AnalyzeCommentResponse> {
+  sendAnalyzeRequest(request: AnalyzeCommentRequest): Promise<AnalyzeCommentResponse> {
     return new Promise((resolve, reject) => {
       this.analyzeApiClient.comments.analyze({
         key: this.config.googleCloudApiKey,
-        resource: request
+        requestBody: request
       },
-      (error: Error, response: AnalyzeCommentResponse) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(response);
-      })
+        (error: Error, response: GaxiosResponse<AnalyzeCommentResponse>) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(response.data);
+        });
     });
   }
 
   sendSuggestCommentScoreRequest(request: SuggestCommentScoreRequest)
-      : Promise<SuggestCommentScoreResponse> {
+    : Promise<SuggestCommentScoreResponse> {
     return new Promise((resolve, reject) => {
       this.analyzeApiClient.comments.suggestscore({
         key: this.config.googleCloudApiKey,
-        resource: request
+        requestBody: request
       },
-      (error: Error, response: SuggestCommentScoreResponse) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(response);
-      });
+        (error: Error, response: GaxiosResponse<SuggestCommentScoreResponse>) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve(response.data);
+        });
     });
   }
 
-  createCommentAnalyzerClient(discoveryUrl: string) : Promise<void> {
+  createCommentAnalyzerClient(): Promise<void> {
     return new Promise<void>((resolve: () => void,
-                              reject: (reason?: Error|ResponseError) => void) => {
-      googleapis.discoverAPI(discoveryUrl, (discoverErr: ResponseError,
-                                            client: NodeAnalyzeApiClient) => {
-        if (discoverErr) {
-          console.error('ERROR: discoverAPI failed.');
-          reject(discoverErr);
-          return;
-        }
-        if (!(client.comments && client.comments.analyze)) {
-          console.error(
-            'ERROR: !(client.comments && client.comments.analyze)');
-          // Bizarrely, this doesn't cause a discovery error?
-          reject(Error('Unknown error loading API: client is b0rken'));
-          return;
-        }
-        this.analyzeApiClient = client;
-        resolve();
-      });
+      reject: (reason?: Error | ResponseError) => void) => {
+      const client = new commentanalyzer_v1alpha1.Commentanalyzer(
+        {auth: this.config.googleCloudApiKey});
+
+      if (!(client.comments && client.comments.analyze)) {
+        console.error(
+          'ERROR: !(client.comments && client.comments.analyze)');
+        // Bizarrely, this doesn't cause a discovery error?
+        reject(Error('Unknown error loading API: client is b0rken'));
+        return;
+      }
+      this.analyzeApiClient = client;
+      resolve();
     });
-  };
-};
+  }
+}
