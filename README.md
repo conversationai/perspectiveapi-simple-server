@@ -27,14 +27,17 @@ fields.
    production if this is left empty.
 
 *  "staticPath": The path where the static html/css/js resources are located.
-   Note
-   that this path is relative to the directory of the run_server.js file, which
-   is in you projects `node_modules`
+   Note that this path is relative to the directory of the run_server.js file, which
+   is in your project's `node_modules`
    `node_modules/@conversationai/perspectiveapi-simple-server/build/server/run_server.js`
 
 *  "googleCloudApiKey": The API key for your google cloud project.
 
 *  "toxicityAttribute": The name of the attribute to use for toxicity scores. See the [PerspectiveAPI documentation](https://conversationai.github.com/perspectiveapi/) for more details.
+
+*  "recaptchaConfig": An optional configuration for enabling reCAPTCHA verification.
+    This is empty by default. See the `Config` interface in `serving.ts` for the
+    requisite values.
 
 Note: The following can be done with npm as well as yarn, but yarn is
 recommended.

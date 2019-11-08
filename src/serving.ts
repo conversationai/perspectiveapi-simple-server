@@ -19,13 +19,8 @@ import * as express from 'express';
 import * as http from 'http';
 import * as path from 'path';
 import * as cors from 'cors';
-// import * as Logging from '@google-cloud/logging';
-// import * as helmet from 'helmet';
-// import * as express_enforces_ssl from 'express-enforces-ssl';
+import * as axios from 'axios';
 
-interface Logger {
-  write(s:string): void;
-}
 import {
   AnalyzeCommentData,
   AnalyzeCommentRequest,
@@ -49,6 +44,14 @@ export interface Config {
   toxicityAttribute: string;
   cloudProjectId: string;
   isProduction: boolean;
+  recaptchaConfig?: {
+    secretKey: string;
+    threshold: number;
+}
+}
+
+interface Logger {
+  write(s: string): void;
 }
 
 export class Server {
@@ -102,7 +105,7 @@ export class Server {
 
     // Define an endpoint with CORS enabled to be used by the plugin.
     this.app.options('/plugin/check', cors()) // enable CORS for pre-flight requests.
-    this.app.post('/plugin/check', cors(), (req, res) => {
+    this.app.post('/plugin/check', cors(), this.verifyRecaptcha(), (req, res) => {
       this.log.write('Received a cross-original check request.');
       this.sendAnalyzeRequest(this.getAnalyzeCommentRequest(req))
         .then((response: AnalyzeCommentResponse) => {
@@ -114,7 +117,7 @@ export class Server {
     });
 
 
-    this.app.post('/check', (req, res) => {
+    this.app.post('/check', this.verifyRecaptcha(), (req, res) => {
       this.sendAnalyzeRequest(this.getAnalyzeCommentRequest(req))
         .then((response: AnalyzeCommentResponse) => {
           res.send(response);
@@ -124,7 +127,7 @@ export class Server {
         });
     });
 
-    this.app.post('/suggest_score', (req, res) => {
+    this.app.post('/suggest_score', this.verifyRecaptcha(), (req, res) => {
       if(!req.body) {
         // TODO: don't thow error, return an appropriate response code.
         throw Error('No request body.');
@@ -290,5 +293,36 @@ export class Server {
       this.analyzeApiClient = client;
       resolve();
     });
+  }
+
+  verifyRecaptcha() {
+    return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const recaptchaConfig = this.config.recaptchaConfig;
+
+      // Skip reCAPTCHA verification if the requisite config was not provided.
+      if (!recaptchaConfig) {
+        return next();
+      }
+
+      axios.default
+        .post('https://www.google.com/recaptcha/api/siteverify', {}, {
+          params: {
+            secret: recaptchaConfig.secretKey,
+            response: req.body.recaptchaToken,
+          }
+        })
+        .then((response: axios.AxiosResponse) => {
+          if (response.data['error-codes']) {
+            res.status(401).send('reCAPTCHA request failed: ' + response.data['error-codes']);
+          } else if (!response.data.success ||
+            Number(response.data.score) < Number(recaptchaConfig.threshold) ||
+            response.data.action !== req.body.action) {
+            res.status(401).send('Error validating reCAPTCHA. Please use our (free!) API or try again later.');
+          } else {
+            return next();
+          }
+        })
+        .catch(next);
+    };
   }
 }
