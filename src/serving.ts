@@ -325,8 +325,8 @@ export class Server {
           if (response.data[errorAccessor]) {
             res.status(UNAUTHORIZED).send('reCAPTCHA request failed: ' + response.data[errorAccessor]);
           } else if (!response.data.success
-            || Number(response.data.score) < Number(recaptchaConfig.threshold)
-            || response.data.action !== req.body.action) {
+                    || Number(response.data.score) < Number(recaptchaConfig.threshold)
+                    || response.data.action !== req.body.action) {
             res.status(UNAUTHORIZED).send('Error validating reCAPTCHA. Please use our (free!) API or try again later.');
           } else {
             return next();
