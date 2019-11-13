@@ -2,7 +2,7 @@
   "name": "@conversationai/perspectiveapi-simple-server",
   "description": "A simple server for use with the Perspective API. Serves static content and provides an open endpoint to send requests for one attribute to, e.g. toxicity. This should illustrate how to send requests to the API.",
   "repository": "https://github.com/conversationai/perspectiveapi-simple-server",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "Apache-2.0",
   "scripts": {
     "setup": "mkdir -p build/server/ && mkdir -p build/config/ && rsync --ignore-existing server_config.template.json build/config/server_config.json",
