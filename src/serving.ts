@@ -19,13 +19,8 @@ import * as express from 'express';
 import * as http from 'http';
 import * as path from 'path';
 import * as cors from 'cors';
-// import * as Logging from '@google-cloud/logging';
-// import * as helmet from 'helmet';
-// import * as express_enforces_ssl from 'express-enforces-ssl';
+import * as axios from 'axios';
 
-interface Logger {
-  write(s:string): void;
-}
 import {
   AnalyzeCommentData,
   AnalyzeCommentRequest,
@@ -41,6 +36,7 @@ import {
 } from './analyze-api-defs';
 import {GaxiosResponse} from 'gaxios';
 import {commentanalyzer_v1alpha1} from 'googleapis';
+import {UNAUTHORIZED} from 'http-status-codes';
 
 export interface Config {
   port: string;
@@ -49,7 +45,22 @@ export interface Config {
   toxicityAttribute: string;
   cloudProjectId: string;
   isProduction: boolean;
+  recaptchaConfig?: {
+    // The reCAPTCHA secret key for the site issuing requests to this server.
+    // This key can be be generated at: https://g.co/recaptcha/v3
+    secretKey: string;
+    // The threshold the reCAPTCHA response score must meet in order for the
+    // request to be considered valid. This should range between 0.0-1.0. We
+    // recommend starting with 0.5.
+    threshold: number;
+  }
 }
+
+interface Logger {
+  write(s: string): void;
+}
+
+const errorAccessor = 'error-codes';
 
 export class Server {
   // Public for the sake of writing tests.
@@ -102,7 +113,7 @@ export class Server {
 
     // Define an endpoint with CORS enabled to be used by the plugin.
     this.app.options('/plugin/check', cors()) // enable CORS for pre-flight requests.
-    this.app.post('/plugin/check', cors(), (req, res) => {
+    this.app.post('/plugin/check', cors(), this.verifyRecaptcha(), (req, res) => {
       this.log.write('Received a cross-original check request.');
       this.sendAnalyzeRequest(this.getAnalyzeCommentRequest(req))
         .then((response: AnalyzeCommentResponse) => {
@@ -114,7 +125,7 @@ export class Server {
     });
 
 
-    this.app.post('/check', (req, res) => {
+    this.app.post('/check', this.verifyRecaptcha(), (req, res) => {
       this.sendAnalyzeRequest(this.getAnalyzeCommentRequest(req))
         .then((response: AnalyzeCommentResponse) => {
           res.send(response);
@@ -124,7 +135,7 @@ export class Server {
         });
     });
 
-    this.app.post('/suggest_score', (req, res) => {
+    this.app.post('/suggest_score', this.verifyRecaptcha(), (req, res) => {
       if(!req.body) {
         // TODO: don't thow error, return an appropriate response code.
         throw Error('No request body.');
@@ -290,5 +301,38 @@ export class Server {
       this.analyzeApiClient = client;
       resolve();
     });
+  }
+
+  // Issues a request to reCAPTCHA to verify the request is from a human. Note
+  // that this executes only if a valid config is provided.
+  verifyRecaptcha() {
+    return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      const recaptchaConfig = this.config.recaptchaConfig;
+
+      // Skip reCAPTCHA verification if the requisite config was not provided.
+      if (!recaptchaConfig) {
+        return next();
+      }
+
+      axios.default
+        .post('https://www.google.com/recaptcha/api/siteverify', {}, {
+          params: {
+            secret: recaptchaConfig.secretKey,
+            response: req.body.recaptchaToken,
+          }
+        })
+        .then((response: axios.AxiosResponse) => {
+          if (response.data[errorAccessor]) {
+            res.status(UNAUTHORIZED).send('reCAPTCHA request failed: ' + response.data[errorAccessor]);
+          } else if (!response.data.success
+                    || Number(response.data.score) < Number(recaptchaConfig.threshold)
+                    || response.data.action !== req.body.action) {
+            res.status(UNAUTHORIZED).send('Error validating reCAPTCHA. Please use our (free!) API or try again later.');
+          } else {
+            return next();
+          }
+        })
+        .catch(next);
+    };
   }
 }
