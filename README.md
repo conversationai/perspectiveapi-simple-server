@@ -35,9 +35,9 @@ fields.
 
 *  "toxicityAttribute": The name of the attribute to use for toxicity scores. See the [PerspectiveAPI documentation](https://conversationai.github.com/perspectiveapi/) for more details.
 
-*  "recaptchaConfig": An optional configuration for enabling reCAPTCHA verification.
-    This is empty by default. See the `Config` interface in `serving.ts` for the
-    requisite values.
+*  "recaptchaConfig": An optional configuration for enabling reCAPTCHA v3 verification.
+    This is empty by default. The requisite fields for this option are `secretKey` and
+    `threshold`. See the `Config` interface in `serving.ts` for more details.
 
 Note: The following can be done with npm as well as yarn, but yarn is
 recommended.

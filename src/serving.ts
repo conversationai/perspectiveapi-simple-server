@@ -36,6 +36,7 @@ import {
 } from './analyze-api-defs';
 import {GaxiosResponse} from 'gaxios';
 import {commentanalyzer_v1alpha1} from 'googleapis';
+import {UNAUTHORIZED} from 'http-status-codes';
 
 export interface Config {
   port: string;
@@ -45,14 +46,21 @@ export interface Config {
   cloudProjectId: string;
   isProduction: boolean;
   recaptchaConfig?: {
+    // The reCAPTCHA secret key for the site issuing requests to this server.
+    // This key can be be generated at: https://g.co/recaptcha/v3
     secretKey: string;
+    // The threshold the reCAPTCHA response score must meet in order for the
+    // request to be considered valid. This should range between 0.0-1.0. We
+    // recommend starting with 0.5.
     threshold: number;
-}
+  }
 }
 
 interface Logger {
   write(s: string): void;
 }
+
+const errorAccessor = 'error-codes';
 
 export class Server {
   // Public for the sake of writing tests.
@@ -295,6 +303,8 @@ export class Server {
     });
   }
 
+  // Issues a request to reCAPTCHA to verify the request is from a human. Note
+  // that this executes only if a valid config is provided.
   verifyRecaptcha() {
     return (req: express.Request, res: express.Response, next: express.NextFunction) => {
       const recaptchaConfig = this.config.recaptchaConfig;
@@ -312,12 +322,12 @@ export class Server {
           }
         })
         .then((response: axios.AxiosResponse) => {
-          if (response.data['error-codes']) {
-            res.status(401).send('reCAPTCHA request failed: ' + response.data['error-codes']);
-          } else if (!response.data.success ||
-            Number(response.data.score) < Number(recaptchaConfig.threshold) ||
-            response.data.action !== req.body.action) {
-            res.status(401).send('Error validating reCAPTCHA. Please use our (free!) API or try again later.');
+          if (response.data[errorAccessor]) {
+            res.status(UNAUTHORIZED).send('reCAPTCHA request failed: ' + response.data[errorAccessor]);
+          } else if (!response.data.success
+            || Number(response.data.score) < Number(recaptchaConfig.threshold)
+            || response.data.action !== req.body.action) {
+            res.status(UNAUTHORIZED).send('Error validating reCAPTCHA. Please use our (free!) API or try again later.');
           } else {
             return next();
           }
