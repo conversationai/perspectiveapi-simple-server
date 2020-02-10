@@ -113,7 +113,7 @@ export class Server {
 
     // Define an endpoint with CORS enabled to be used by the plugin.
     this.app.options('/plugin/check', cors()) // enable CORS for pre-flight requests.
-    this.app.post('/plugin/check', cors(), this.verifyRecaptcha(), (req, res) => {
+    this.app.post('/plugin/check', cors(), (req, res) => {
       this.log.write('Received a cross-original check request.');
       this.sendAnalyzeRequest(this.getAnalyzeCommentRequest(req))
         .then((response: AnalyzeCommentResponse) => {
